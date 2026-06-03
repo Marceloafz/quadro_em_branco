@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quadro Branco Colaborativo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; background: #f5f5f5; }
+    header { height: 48px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+    header h1 { font-size: 15px; font-weight: 600; color: #333; }
+    #status { font-size: 12px; color: #888; margin-left: auto; }
+    #status.conectado { color: #22c55e; }
+    #status.desconectado { color: #ef4444; }
+    canvas { flex: 1; display: block; background: #ffffff; cursor: crosshair; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🖊 Quadro Branco</h1>
+    <span id="status" class="desconectado">desconectado</span>
+  </header>
+  <canvas id="canvas"></canvas>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="socket.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+
+    function redimensionar() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener('resize', redimensionar);
+    redimensionar();
+
+    const rawSocket = io('http://localhost:3000', { autoConnect: false });
+    rawSocket.on('connect', () => { statusEl.textContent = `conectado · ${rawSocket.id}`; statusEl.className = 'conectado'; });
+    rawSocket.on('disconnect', () => { statusEl.textContent = 'desconectado'; statusEl.className = 'desconectado'; });
+  </script>
+</body>
+</html>
