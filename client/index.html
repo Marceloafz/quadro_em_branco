@@ -6,38 +6,133 @@
   <title>Quadro Branco Colaborativo</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; background: #f5f5f5; }
-    header { height: 48px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      height: 48px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
     header h1 { font-size: 15px; font-weight: 600; color: #333; }
-    #status { font-size: 12px; color: #888; margin-left: auto; }
-    #status.conectado { color: #22c55e; }
-    #status.desconectado { color: #ef4444; }
-    canvas { flex: 1; display: block; background: #ffffff; cursor: crosshair; }
+
+    /* ── barra de ferramentas ── */
+    #toolbar {
+      height: 48px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .swatch {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .swatch.selecionado { border-color: #333; }
+
+    #espessura-slider { width: 80px; }
+
+    #espessura-preview {
+      border-radius: 50%;
+      background: #1a1a1a;
+      transition: width .15s, height .15s, background .15s;
+    }
+
+    #cor-custom { width: 28px; height: 28px; border: none; cursor: pointer; background: none; }
+
+    #btn-limpar {
+      margin-left: auto;
+      padding: 4px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #btn-limpar:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+
+    /* ── status ── */
+    #status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #9ca3af;
+      flex-shrink: 0;
+    }
+    #status-dot.online   { background: #22c55e; }
+    #status-dot.offline  { background: #ef4444; }
+
+    #status-txt { font-size: 12px; color: #888; margin-left: auto; }
+
+    /* ── canvas ── */
+    #canvas {
+      flex: 1;
+      display: block;
+      background: #ffffff;
+      cursor: crosshair;
+    }
   </style>
 </head>
 <body>
+
   <header>
-    <h1>🖊 Quadro Branco</h1>
-    <span id="status" class="desconectado">desconectado</span>
+    <h1>🖊 Quadro Branco Colaborativo</h1>
+    <div id="status-dot" class="offline"></div>
+    <span id="status-txt">desconectado</span>
   </header>
+
+  <div id="toolbar">
+    <!-- paleta rápida -->
+    <span class="swatch selecionado" data-cor="#1a1a1a" style="background:#1a1a1a"></span>
+    <span class="swatch" data-cor="#ef4444" style="background:#ef4444"></span>
+    <span class="swatch" data-cor="#3b82f6" style="background:#3b82f6"></span>
+    <span class="swatch" data-cor="#22c55e" style="background:#22c55e"></span>
+    <span class="swatch" data-cor="#f59e0b" style="background:#f59e0b"></span>
+    <span class="swatch" data-cor="#a855f7" style="background:#a855f7"></span>
+    <span class="swatch" data-cor="#ffffff" style="background:#fff; border:1px solid #ccc"></span>
+
+    <!-- cor personalizada -->
+    <input type="color" id="cor-custom" title="Cor personalizada" value="#1a1a1a" />
+
+    <!-- espessura -->
+    <input type="range" id="espessura-slider" min="1" max="30" value="4" />
+    <span id="espessura-preview" style="width:8px;height:8px;"></span>
+
+    <button id="btn-limpar">🗑 Limpar</button>
+  </div>
+
   <canvas id="canvas"></canvas>
+
+  <!--
+    Ordem de carregamento:
+      1. socket.io  — biblioteca cliente
+      2. socket.js  — sincronização em tempo real (Thiago)
+      3. canvas.js  — interface de desenho local (Marcelo / Leonardo)
+
+    canvas.js DEVE vir depois de socket.js porque ele define
+    window.desenharTraco, window.limparCanvas e window.removerCursor,
+    que são chamados pelos eventos socket registrados em socket.js.
+  -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="socket.js"></script>
-  <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const statusEl = document.getElementById('status');
+  <script src="canvas.js"></script>
 
-    function redimensionar() {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    }
-    window.addEventListener('resize', redimensionar);
-    redimensionar();
-
-    const rawSocket = io('http://localhost:3000', { autoConnect: false });
-    rawSocket.on('connect', () => { statusEl.textContent = `conectado · ${rawSocket.id}`; statusEl.className = 'conectado'; });
-    rawSocket.on('disconnect', () => { statusEl.textContent = 'desconectado'; statusEl.className = 'desconectado'; });
-  </script>
 </body>
 </html>
