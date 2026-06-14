@@ -50,14 +50,73 @@ socket.on('limpar', () => {
 
 // ── Presença (tratado pelo Membro 4) ──────────
 
-socket.on('cliente:entrou', ({ id }) => {
-  // Membro 4 (Igor) cuida da exibição da lista de presença
+// Armazena os usuários conectados
+const usuariosOnline = {};
+
+// Recebe a lista completa enviada pelo servidor
+socket.on('usuarios:lista', (usuarios) => {
+  Object.assign(usuariosOnline, usuarios);
+  atualizarListaUsuarios();
 });
 
-socket.on('cliente:saiu', ({ id, motivo }) => {
-  window.removerCursor(id);
-  // Membro 4 (Igor) cuida da atualização da lista de presença
+// Notificação de entrada
+socket.on('cliente:entrou', ({ id, apelido, cor }) => {
+  mostrarNotificacao(`${apelido} entrou na sessão`);
 });
+
+// Atualização quando alguém sai
+socket.on('cliente:saiu', ({ id, motivo }) => {
+  delete usuariosOnline[id];
+
+  atualizarListaUsuarios();
+
+  window.removerCursor(id);
+
+  mostrarNotificacao(`Um usuário saiu da sessão`);
+});
+
+// Atualiza a lista visual de usuários
+function atualizarListaUsuarios() {
+  const lista = document.getElementById('listaUsuarios');
+
+  if (!lista) return;
+
+  lista.innerHTML = '';
+
+  Object.values(usuariosOnline).forEach((usuario) => {
+    const item = document.createElement('div');
+
+    item.innerHTML = `
+      <span
+        style="
+          display:inline-block;
+          width:10px;
+          height:10px;
+          border-radius:50%;
+          background:${usuario.cor};
+          margin-right:6px;
+        ">
+      </span>
+      ${usuario.apelido}
+    `;
+
+    lista.appendChild(item);
+  });
+}
+
+// Exibe notificações temporárias
+function mostrarNotificacao(mensagem) {
+  const aviso = document.createElement('div');
+
+  aviso.className = 'notificacao';
+  aviso.textContent = mensagem;
+
+  document.body.appendChild(aviso);
+
+  setTimeout(() => {
+    aviso.remove();
+  }, 3000);
+}
 
 // ── Envio de eventos ──────────────────────────
 
