@@ -1,0 +1,20 @@
+{
+  "name": "quadro-em-branco",
+  "version": "1.0.0",
+  "description": "Quadro branco colaborativo — Electron + Socket.IO",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test:lan": "node server/teste-lan.js",
+    "test:integracao": "node server/teste-integracao.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "nodemon": "^3.1.0",
+    "socket.io-client": "^4.7.5"
+  }
+}
