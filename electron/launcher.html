@@ -14,7 +14,7 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-      gap: 28px;
+      gap: 24px;
       user-select: none;
       -webkit-app-region: drag;
     }
@@ -35,9 +35,42 @@
 
     .opcao { display: flex; flex-direction: column; gap: 4px; }
 
+    .divisor {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #d1d5db;
+      font-size: 11px;
+    }
+    .divisor::before,
+    .divisor::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+
+    .ip-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 9px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #374151;
+      background: #fff;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #2563eb; }
+    input[type="text"]::placeholder { color: #9ca3af; }
+    input[type="text"]:disabled { opacity: .45; }
+
     button {
-      width: 100%;
-      padding: 12px;
+      padding: 10px 12px;
       border: none;
       border-radius: 8px;
       font-size: 13px;
@@ -48,8 +81,9 @@
     button:hover:not(:disabled) { opacity: .85; }
     button:disabled { opacity: .45; cursor: default; }
 
-    .btn-host { background: #2563eb; color: #fff; }
-    .btn-join { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .btn-host  { background: #2563eb; color: #fff; width: 100%; padding: 12px; }
+    .btn-join  { background: #fff; color: #374151; border: 1px solid #d1d5db; width: 100%; padding: 12px; }
+    .btn-conectar { background: #fff; color: #2563eb; border: 1px solid #2563eb; font-size: 12px; white-space: nowrap; }
     .btn-cancel {
       background: none;
       border: none;
@@ -59,6 +93,7 @@
       padding: 4px;
       cursor: pointer;
       display: none;
+      width: 100%;
     }
     .btn-cancel:hover { color: #ef4444; }
 
@@ -70,7 +105,6 @@
       min-height: 16px;
       -webkit-app-region: no-drag;
     }
-
     #status.erro { color: #ef4444; }
   </style>
 </head>
@@ -83,32 +117,50 @@
       <button class="btn-host" id="btn-host">Hospedar sessão</button>
       <span class="desc">Inicia o servidor nesta máquina</span>
     </div>
+
     <div class="opcao">
       <button class="btn-join" id="btn-join">Entrar em sessão</button>
       <span class="desc">Busca automaticamente um servidor na rede</span>
     </div>
+
     <button class="btn-cancel" id="btn-cancel">Cancelar busca</button>
+
+    <div class="divisor">ou informe o IP</div>
+
+    <div class="opcao">
+      <div class="ip-row">
+        <input type="text" id="input-ip" placeholder="100.x.x.x ou 192.168.x.x" />
+        <button class="btn-conectar" id="btn-conectar">Conectar</button>
+      </div>
+      <span class="desc">Útil para Tailscale ou IP manual</span>
+    </div>
   </div>
 
   <p id="status"></p>
 
   <script>
-    const btnHost   = document.getElementById('btn-host');
-    const btnJoin   = document.getElementById('btn-join');
-    const btnCancel = document.getElementById('btn-cancel');
-    const statusEl  = document.getElementById('status');
+    const btnHost     = document.getElementById('btn-host');
+    const btnJoin     = document.getElementById('btn-join');
+    const btnCancel   = document.getElementById('btn-cancel');
+    const btnConectar = document.getElementById('btn-conectar');
+    const inputIp     = document.getElementById('input-ip');
+    const statusEl    = document.getElementById('status');
 
     function desabilitar() {
-      btnHost.disabled = true;
-      btnJoin.disabled = true;
+      btnHost.disabled     = true;
+      btnJoin.disabled     = true;
+      btnConectar.disabled = true;
+      inputIp.disabled     = true;
     }
 
     function reabilitar() {
-      btnHost.disabled = false;
-      btnJoin.disabled = false;
+      btnHost.disabled     = false;
+      btnJoin.disabled     = false;
+      btnConectar.disabled = false;
+      inputIp.disabled     = false;
       btnCancel.style.display = 'none';
       statusEl.textContent = '';
-      statusEl.className = '';
+      statusEl.className   = '';
     }
 
     btnHost.addEventListener('click', () => {
@@ -127,9 +179,20 @@
       reabilitar();
     });
 
+    btnConectar.addEventListener('click', () => {
+      const ip = inputIp.value.trim();
+      if (!ip) { inputIp.focus(); return; }
+      desabilitar();
+      window.electronAPI.conectarIp(ip);
+    });
+
+    inputIp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnConectar.click();
+    });
+
     window.electronAPI.onStatus((msg, tipo) => {
       statusEl.textContent = msg;
-      statusEl.className = tipo === 'erro' ? 'erro' : '';
+      statusEl.className   = tipo === 'erro' ? 'erro' : '';
       if (tipo === 'erro') reabilitar();
     });
   </script>
