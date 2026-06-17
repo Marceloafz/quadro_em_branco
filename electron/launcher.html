@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quadro Branco</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: sans-serif;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 28px;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111;
+    }
+
+    .opcoes {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 220px;
+      -webkit-app-region: no-drag;
+    }
+
+    .opcao { display: flex; flex-direction: column; gap: 4px; }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    button:hover:not(:disabled) { opacity: .85; }
+    button:disabled { opacity: .45; cursor: default; }
+
+    .btn-host { background: #2563eb; color: #fff; }
+    .btn-join { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .btn-cancel {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 400;
+      padding: 4px;
+      cursor: pointer;
+      display: none;
+    }
+    .btn-cancel:hover { color: #ef4444; }
+
+    .desc { font-size: 11px; color: #9ca3af; padding-left: 2px; }
+
+    #status {
+      font-size: 12px;
+      color: #6b7280;
+      min-height: 16px;
+      -webkit-app-region: no-drag;
+    }
+
+    #status.erro { color: #ef4444; }
+  </style>
+</head>
+<body>
+
+  <h1>🖊 Quadro Branco Colaborativo</h1>
+
+  <div class="opcoes">
+    <div class="opcao">
+      <button class="btn-host" id="btn-host">Hospedar sessão</button>
+      <span class="desc">Inicia o servidor nesta máquina</span>
+    </div>
+    <div class="opcao">
+      <button class="btn-join" id="btn-join">Entrar em sessão</button>
+      <span class="desc">Busca automaticamente um servidor na rede</span>
+    </div>
+    <button class="btn-cancel" id="btn-cancel">Cancelar busca</button>
+  </div>
+
+  <p id="status"></p>
+
+  <script>
+    const btnHost   = document.getElementById('btn-host');
+    const btnJoin   = document.getElementById('btn-join');
+    const btnCancel = document.getElementById('btn-cancel');
+    const statusEl  = document.getElementById('status');
+
+    function desabilitar() {
+      btnHost.disabled = true;
+      btnJoin.disabled = true;
+    }
+
+    function reabilitar() {
+      btnHost.disabled = false;
+      btnJoin.disabled = false;
+      btnCancel.style.display = 'none';
+      statusEl.textContent = '';
+      statusEl.className = '';
+    }
+
+    btnHost.addEventListener('click', () => {
+      desabilitar();
+      window.electronAPI.hospedar();
+    });
+
+    btnJoin.addEventListener('click', () => {
+      desabilitar();
+      btnCancel.style.display = 'block';
+      window.electronAPI.entrar();
+    });
+
+    btnCancel.addEventListener('click', () => {
+      window.electronAPI.cancelar();
+      reabilitar();
+    });
+
+    window.electronAPI.onStatus((msg, tipo) => {
+      statusEl.textContent = msg;
+      statusEl.className = tipo === 'erro' ? 'erro' : '';
+      if (tipo === 'erro') reabilitar();
+    });
+  </script>
+</body>
+</html>
