@@ -14,21 +14,18 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-      gap: 24px;
+      gap: 14px;
+      padding: 16px;
       user-select: none;
       -webkit-app-region: drag;
     }
 
-    h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #111;
-    }
+    h1 { font-size: 15px; font-weight: 600; color: #111; }
 
     .opcoes {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       width: 220px;
       -webkit-app-region: no-drag;
     }
@@ -42,22 +39,85 @@
       color: #d1d5db;
       font-size: 11px;
     }
-    .divisor::before,
-    .divisor::after {
+    .divisor::before, .divisor::after {
       content: '';
       flex: 1;
       height: 1px;
       background: #e5e7eb;
     }
 
-    .ip-row {
+    /* ── lista de hosts ── */
+    .hosts-wrapper {
       display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hosts-lista {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      overflow-y: auto;
+      max-height: 110px;
+      min-height: 52px;
+    }
+
+    .host-vazio {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 52px;
+      font-size: 11px;
+      color: #9ca3af;
       gap: 6px;
     }
 
+    .host-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-bottom: 1px solid #f3f4f6;
+      cursor: default;
+    }
+    .host-item:last-child { border-bottom: none; }
+    .host-item:hover { background: #f0f9ff; }
+
+    .host-ip {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e40af;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .host-ip::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
+
+    .btn-entrar {
+      padding: 4px 10px;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      background: #fff;
+      color: #2563eb;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-entrar:hover { background: #2563eb; color: #fff; }
+
+    /* ── ip manual ── */
+    .ip-row { display: flex; gap: 6px; }
+
     input[type="text"] {
       flex: 1;
-      padding: 9px 10px;
+      padding: 8px 10px;
       border: 1px solid #d1d5db;
       border-radius: 8px;
       font-size: 12px;
@@ -81,31 +141,30 @@
     button:hover:not(:disabled) { opacity: .85; }
     button:disabled { opacity: .45; cursor: default; }
 
-    .btn-host  { background: #2563eb; color: #fff; width: 100%; padding: 12px; }
-    .btn-join  { background: #fff; color: #374151; border: 1px solid #d1d5db; width: 100%; padding: 12px; }
+    .btn-host     { background: #2563eb; color: #fff; width: 100%; padding: 10px; }
     .btn-conectar { background: #fff; color: #2563eb; border: 1px solid #2563eb; font-size: 12px; white-space: nowrap; }
-    .btn-cancel {
-      background: none;
-      border: none;
-      color: #9ca3af;
-      font-size: 12px;
-      font-weight: 400;
-      padding: 4px;
-      cursor: pointer;
-      display: none;
-      width: 100%;
-    }
-    .btn-cancel:hover { color: #ef4444; }
 
     .desc { font-size: 11px; color: #9ca3af; padding-left: 2px; }
 
     #status {
       font-size: 12px;
       color: #6b7280;
-      min-height: 16px;
+      min-height: 14px;
       -webkit-app-region: no-drag;
     }
     #status.erro { color: #ef4444; }
+
+    .ip-info { font-size: 11px; color: #9ca3af; }
+    .ip-info span {
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      user-select: text;
+    }
+    .ip-info span:hover { color: #2563eb; }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    .buscando { animation: pulse 1.5s infinite; }
   </style>
 </head>
 <body>
@@ -113,17 +172,22 @@
   <h1>🖊 Quadro Branco Colaborativo</h1>
 
   <div class="opcoes">
+
     <div class="opcao">
       <button class="btn-host" id="btn-host">Hospedar sessão</button>
       <span class="desc">Inicia o servidor nesta máquina</span>
     </div>
 
-    <div class="opcao">
-      <button class="btn-join" id="btn-join">Entrar em sessão</button>
-      <span class="desc">Busca automaticamente um servidor na rede</span>
-    </div>
+    <div class="divisor">sessões na rede</div>
 
-    <button class="btn-cancel" id="btn-cancel">Cancelar busca</button>
+    <div class="hosts-wrapper">
+      <div class="hosts-lista" id="hosts-lista">
+        <div class="host-vazio">
+          <span class="buscando">⬤</span> buscando...
+        </div>
+      </div>
+      <span class="desc">Clique em Entrar para conectar</span>
+    </div>
 
     <div class="divisor">ou informe o IP</div>
 
@@ -134,49 +198,29 @@
       </div>
       <span class="desc">Útil para Tailscale ou IP manual</span>
     </div>
+
+    <p class="ip-info">Seu IP: <span id="meu-ip">carregando...</span></p>
   </div>
 
   <p id="status"></p>
 
   <script>
     const btnHost     = document.getElementById('btn-host');
-    const btnJoin     = document.getElementById('btn-join');
-    const btnCancel   = document.getElementById('btn-cancel');
     const btnConectar = document.getElementById('btn-conectar');
     const inputIp     = document.getElementById('input-ip');
     const statusEl    = document.getElementById('status');
+    const hostsLista  = document.getElementById('hosts-lista');
 
     function desabilitar() {
       btnHost.disabled     = true;
-      btnJoin.disabled     = true;
       btnConectar.disabled = true;
       inputIp.disabled     = true;
-    }
-
-    function reabilitar() {
-      btnHost.disabled     = false;
-      btnJoin.disabled     = false;
-      btnConectar.disabled = false;
-      inputIp.disabled     = false;
-      btnCancel.style.display = 'none';
-      statusEl.textContent = '';
-      statusEl.className   = '';
+      hostsLista.querySelectorAll('.btn-entrar').forEach(b => b.disabled = true);
     }
 
     btnHost.addEventListener('click', () => {
       desabilitar();
       window.electronAPI.hospedar();
-    });
-
-    btnJoin.addEventListener('click', () => {
-      desabilitar();
-      btnCancel.style.display = 'block';
-      window.electronAPI.entrar();
-    });
-
-    btnCancel.addEventListener('click', () => {
-      window.electronAPI.cancelar();
-      reabilitar();
     });
 
     btnConectar.addEventListener('click', () => {
@@ -190,10 +234,44 @@
       if (e.key === 'Enter') btnConectar.click();
     });
 
+    window.electronAPI.onHostsLista((lista) => {
+      if (lista.length === 0) {
+        hostsLista.innerHTML = `
+          <div class="host-vazio">
+            <span class="buscando">⬤</span> buscando...
+          </div>`;
+        return;
+      }
+
+      hostsLista.innerHTML = lista.map(({ ip, port }) => `
+        <div class="host-item">
+          <span class="host-ip">${ip}</span>
+          <button class="btn-entrar" data-ip="${ip}" data-port="${port}">Entrar</button>
+        </div>
+      `).join('');
+
+      hostsLista.querySelectorAll('.btn-entrar').forEach(btn => {
+        btn.addEventListener('click', () => {
+          desabilitar();
+          window.electronAPI.entrarHost(btn.dataset.ip, Number(btn.dataset.port));
+        });
+      });
+    });
+
+    window.electronAPI.getIp().then((ip) => {
+      const el = document.getElementById('meu-ip');
+      el.textContent = ip;
+      el.title = 'Clique para copiar';
+      el.addEventListener('click', () => {
+        navigator.clipboard.writeText(ip);
+        el.textContent = 'copiado!';
+        setTimeout(() => { el.textContent = ip; }, 1500);
+      });
+    });
+
     window.electronAPI.onStatus((msg, tipo) => {
       statusEl.textContent = msg;
       statusEl.className   = tipo === 'erro' ? 'erro' : '';
-      if (tipo === 'erro') reabilitar();
     });
   </script>
 </body>
