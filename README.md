@@ -74,15 +74,19 @@ GET http://localhost:3000/health
 
 | Direcao | Evento | Payload |
 |---|---|---|
-| C -> S | `desenho` | `{ x0, y0, x1, y1, cor?, espessura? }` |
+| C -> S | `desenho` | `{ x0, y0, x1, y1, cor?, espessura? }` (coords 0-1) |
 | C -> S | `limpar` | - |
 | S -> C | `historico` | `DrawPayload[]` |
 | S -> C | `usuarios:lista` | `{ [id]: { id, apelido, cor } }` |
-| S -> C | `desenho` | `DrawPayload + autorId + ts` |
+| S -> C | `desenho` | `DrawPayload + autorId + ts` (coords 0-1) |
 | S -> C | `limpar` | - |
 | S -> C | `cliente:entrou` | `{ id, apelido, cor }` |
 | S -> C | `cliente:saiu` | `{ id, motivo }` |
 | S -> C | `erro` | `{ msg }` |
+
+> As coordenadas dos tracos trafegam normalizadas (fracoes 0-1 do tamanho
+> do canvas), para o desenho aparecer na mesma posicao relativa em telas
+> de tamanhos diferentes.
 
 ## Testes
 

@@ -23,6 +23,16 @@
     return borrachaAtiva ? COR_FUNDO : corAtual;
   }
 
+  // -- Normalizacao de coordenadas --
+  // Os tracos trafegam como fracoes 0-1 do tamanho do canvas. Assim o desenho
+  // aparece na mesma posicao relativa em telas de tamanhos diferentes.
+  function paraNorm(x, y) {
+    return { x: x / canvas.width, y: y / canvas.height };
+  }
+  function paraPx(nx, ny) {
+    return { x: nx * canvas.width, y: ny * canvas.height };
+  }
+
   function iniciarCanvas() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
@@ -43,7 +53,8 @@
       canvas.height = canvas.offsetHeight;
       configurarCtx();
       const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0);
+      // Reescala o conteudo para o novo tamanho, preservando as proporcoes.
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       img.src = url;
     }, 80);
   });
@@ -72,6 +83,13 @@
     ctx.stroke();
   }
 
+  // Envia um segmento ao servidor em coordenadas normalizadas (0-1).
+  function enviarSegmento(x0, y0, x1, y1, cor) {
+    const a = paraNorm(x0, y0);
+    const b = paraNorm(x1, y1);
+    window.wb?.enviarTraco(a.x, a.y, b.x, b.y, cor, espessuraAtual);
+  }
+
   function aoIniciar(e) {
     e.preventDefault();
     desenhando = true;
@@ -80,7 +98,7 @@
     py = p.y;
     const cor = corEfetiva();
     renderizarSegmento(px, py, px + 0.1, py, cor, espessuraAtual);
-    window.wb?.enviarTraco(px, py, px + 0.1, py, cor, espessuraAtual);
+    enviarSegmento(px, py, px + 0.1, py, cor);
   }
 
   function aoMover(e) {
@@ -89,7 +107,7 @@
     const p = getCoordenadas(e);
     const cor = corEfetiva();
     renderizarSegmento(px, py, p.x, p.y, cor, espessuraAtual);
-    window.wb?.enviarTraco(px, py, p.x, p.y, cor, espessuraAtual);
+    enviarSegmento(px, py, p.x, p.y, cor);
     px = p.x;
     py = p.y;
   }
@@ -207,9 +225,12 @@
     setStatus('offline', 'desconectado');
   });
 
+  // Recebe tracos remotos em coordenadas normalizadas e converte para pixels.
   window.desenharTraco = function (dados) {
     const { x0, y0, x1, y1, cor = '#1a1a1a', espessura = 4 } = dados;
-    renderizarSegmento(x0, y0, x1, y1, cor, espessura);
+    const a = paraPx(x0, y0);
+    const b = paraPx(x1, y1);
+    renderizarSegmento(a.x, a.y, b.x, b.y, cor, espessura);
   };
 
   window.limparCanvas = function () {
