@@ -6,12 +6,22 @@
   const espSlider = document.getElementById('espessura-slider');
   const espPreview = document.getElementById('espessura-preview');
   const btnLimpar = document.getElementById('btn-limpar');
+  const btnBorracha = document.getElementById('btn-borracha');
+  const btnSalvar = document.getElementById('btn-salvar');
   const corCustom = document.getElementById('cor-custom');
+
+  const COR_FUNDO = '#ffffff';
 
   let corAtual = '#1a1a1a';
   let espessuraAtual = 4;
+  let borrachaAtiva = false;
   let desenhando = false;
   let px = 0, py = 0;
+
+  // A borracha desenha com a cor do fundo, sincronizando como um traco branco.
+  function corEfetiva() {
+    return borrachaAtiva ? COR_FUNDO : corAtual;
+  }
 
   function iniciarCanvas() {
     canvas.width = canvas.offsetWidth;
@@ -68,16 +78,18 @@
     const p = getCoordenadas(e);
     px = p.x;
     py = p.y;
-    renderizarSegmento(px, py, px + 0.1, py, corAtual, espessuraAtual);
-    window.wb?.enviarTraco(px, py, px + 0.1, py, corAtual, espessuraAtual);
+    const cor = corEfetiva();
+    renderizarSegmento(px, py, px + 0.1, py, cor, espessuraAtual);
+    window.wb?.enviarTraco(px, py, px + 0.1, py, cor, espessuraAtual);
   }
 
   function aoMover(e) {
     e.preventDefault();
     if (!desenhando) return;
     const p = getCoordenadas(e);
-    renderizarSegmento(px, py, p.x, p.y, corAtual, espessuraAtual);
-    window.wb?.enviarTraco(px, py, p.x, p.y, corAtual, espessuraAtual);
+    const cor = corEfetiva();
+    renderizarSegmento(px, py, p.x, p.y, cor, espessuraAtual);
+    window.wb?.enviarTraco(px, py, p.x, p.y, cor, espessuraAtual);
     px = p.x;
     py = p.y;
   }
@@ -96,6 +108,7 @@
 
   function selecionarCor(novaCor) {
     corAtual = novaCor;
+    desativarBorracha();
     document.querySelectorAll('.swatch').forEach((s) => {
       s.classList.toggle('selecionado', s.dataset.cor === novaCor);
     });
@@ -109,6 +122,7 @@
   corCustom.addEventListener('input', () => {
     document.querySelectorAll('.swatch').forEach((s) => s.classList.remove('selecionado'));
     corAtual = corCustom.value;
+    desativarBorracha();
     atualizarPreview();
   });
 
@@ -118,16 +132,64 @@
     const display = Math.max(4, Math.min(val * 1.5, 36));
     espPreview.style.width = display + 'px';
     espPreview.style.height = display + 'px';
-    espPreview.style.background = corAtual === '#ffffff' ? '#d1d5db' : corAtual;
+    const cor = corEfetiva();
+    espPreview.style.background = cor === '#ffffff' ? '#d1d5db' : cor;
   }
 
   espSlider.addEventListener('input', atualizarPreview);
+
+  // -- Borracha --
+  function desativarBorracha() {
+    borrachaAtiva = false;
+    btnBorracha.classList.remove('ativo');
+  }
+
+  function alternarBorracha() {
+    borrachaAtiva = !borrachaAtiva;
+    btnBorracha.classList.toggle('ativo', borrachaAtiva);
+    atualizarPreview();
+  }
+
+  btnBorracha.addEventListener('click', alternarBorracha);
+
+  // -- Salvar como PNG --
+  function salvarPng() {
+    // Compoe um fundo branco para nao gerar um PNG transparente.
+    const fora = document.createElement('canvas');
+    fora.width = canvas.width;
+    fora.height = canvas.height;
+    const fctx = fora.getContext('2d');
+    fctx.fillStyle = COR_FUNDO;
+    fctx.fillRect(0, 0, fora.width, fora.height);
+    fctx.drawImage(canvas, 0, 0);
+
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    link.download = `quadro-${stamp}.png`;
+    link.href = fora.toDataURL('image/png');
+    link.click();
+  }
+
+  btnSalvar.addEventListener('click', salvarPng);
 
   btnLimpar.addEventListener('click', () => {
     if (window.wb) {
       window.wb.enviarLimpar();
     } else {
       limparCanvas();
+    }
+  });
+
+  // -- Atalhos de teclado --
+  document.addEventListener('keydown', (e) => {
+    const digitando = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+    if (digitando) return;
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      salvarPng();
+    } else if (e.key.toLowerCase() === 'b') {
+      alternarBorracha();
     }
   });
 
@@ -138,7 +200,7 @@
 
   document.addEventListener('socket:conectado', (e) => {
     const id = String(e.detail).slice(0, 6);
-    setStatus('online', `conectado · ${id}`);
+    setStatus('online', `conectado - ${id}`);
   });
 
   document.addEventListener('socket:desconectado', () => {
