@@ -49,6 +49,7 @@ const usuariosOnline = {};
 
 // Recebe a lista completa enviada pelo servidor
 socket.on('usuarios:lista', (usuarios) => {
+  for (const id in usuariosOnline) delete usuariosOnline[id];
   Object.assign(usuariosOnline, usuarios);
   atualizarListaUsuarios();
 });

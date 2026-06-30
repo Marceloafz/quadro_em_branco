@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const dgram = require('dgram');
+const { exec, spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 
@@ -12,6 +13,7 @@ let whiteboardWin = null;
 let broadcastSocket = null;
 let listenerSocket = null;
 let broadcastTimer = null;
+let serverProcess = null;
 const hostsEncontrados = new Map(); // ip → { ip, port, timer }
 
 // ── Utilitários ───────────────────────────────────────────────────────────────
@@ -20,8 +22,11 @@ function getLanIp() {
   const SKIP_IFACE = /virtual|vmware|bluetooth/i;
   // 169.254.x.x = APIPA, sem gateway ativo
   const APIPA = (ip) => ip.startsWith('169.254.');
+  // Faixas de adaptadores virtuais conhecidos — baixa prioridade
+  const VIRTUAL_RANGE = /^(192\.168\.(56|224|57)\.|172\.(16|17|18|19)\.\d+\.1$)/;
   // Faixas privadas reais, em ordem de preferência
   const PREFER = [
+    /^192\.168\.137\./, // hotspot Windows (ICS) — máxima prioridade
     /^192\.168\./,
     /^10\./,
     /^172\.(1[6-9]|2\d|3[01])\./,
@@ -31,13 +36,17 @@ function getLanIp() {
   const ifaces = os.networkInterfaces();
   const candidatos = [];
 
+  const virtuais = [];
   for (const [nome, addrs] of Object.entries(ifaces)) {
     if (SKIP_IFACE.test(nome)) continue;
     for (const addr of addrs) {
       if (addr.family !== 'IPv4' || addr.internal || APIPA(addr.address)) continue;
-      candidatos.push(addr.address);
+      if (VIRTUAL_RANGE.test(addr.address)) virtuais.push(addr.address);
+      else candidatos.push(addr.address);
     }
   }
+  // Virtuais ficam no fim para desempate
+  candidatos.push(...virtuais);
 
   for (const padrao of PREFER) {
     const match = candidatos.find((ip) => padrao.test(ip));
@@ -89,15 +98,36 @@ function abrirQuadro(url) {
 
 // ── Servidor ──────────────────────────────────────────────────────────────────
 
+function abrirFirewall(port) {
+  const tcp = `netsh advfirewall firewall add rule name="QuadroBranco-TCP-${port}" protocol=TCP dir=in localport=${port} action=allow`;
+  const udp = `netsh advfirewall firewall add rule name="QuadroBranco-UDP-${UDP_PORT}" protocol=UDP dir=in localport=${UDP_PORT} action=allow`;
+  exec(tcp, () => {});
+  exec(udp, () => {});
+}
+
 function iniciarServidor() {
   return new Promise((resolve, reject) => {
-    process.env.PORT = String(SERVER_PORT);
-    let mod;
-    try { mod = require('../server/server.js'); } catch (err) { return reject(err); }
-    mod.server.listen(SERVER_PORT, (err) => {
-      if (err) return reject(err);
-      resolve();
+    const serverPath = path.join(__dirname, '..', 'server', 'server.js');
+    serverProcess = spawn('node', [serverPath], {
+      env: { ...process.env, PORT: String(SERVER_PORT) },
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    serverProcess.stdout.on('data', (data) => {
+      const txt = data.toString();
+      console.log('[servidor]', txt.trim());
+      if (txt.includes('Servidor rodando')) {
+        abrirFirewall(SERVER_PORT);
+        resolve();
+      }
+    });
+
+    serverProcess.stderr.on('data', (data) => {
+      console.error('[servidor erro]', data.toString().trim());
+      reject(new Error(data.toString()));
+    });
+
+    serverProcess.on('error', reject);
   });
 }
 
@@ -180,11 +210,15 @@ ipcMain.on('conectar-ip', (_event, ip) => {
 
 // ── Ciclo de vida ─────────────────────────────────────────────────────────────
 
-app.whenReady().then(criarLauncher);
+app.whenReady().then(() => {
+  abrirFirewall(SERVER_PORT);
+  criarLauncher();
+});
 
 app.on('window-all-closed', () => {
   if (broadcastTimer) clearInterval(broadcastTimer);
   try { broadcastSocket?.close(); } catch {}
   try { listenerSocket?.close(); } catch {}
+  serverProcess?.kill();
   app.quit();
 });

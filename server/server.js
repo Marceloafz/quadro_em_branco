@@ -71,6 +71,8 @@ function listaUsuarios() {
 }
 
 io.on('connection', (socket) => {
+  const ip = socket.handshake.address;
+  console.log(`[conexão] ${socket.id} de ${ip}`);
   contadorUsuarios += 1;
   const apelido = `Usuario ${contadorUsuarios}`;
   const cor = CORES_USUARIO[(contadorUsuarios - 1) % CORES_USUARIO.length];
@@ -103,6 +105,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', (motivo) => {
+    console.log(`[desconexão] ${socket.id} de ${ip} — ${motivo}`);
     clientes.delete(socket.id);
     io.emit('cliente:saiu', { id: socket.id, motivo });
     io.emit('usuarios:lista', listaUsuarios());
