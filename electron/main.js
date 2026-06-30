@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const dgram = require('dgram');
 const { exec, spawn } = require('child_process');
+const http = require('http');
 const path = require('path');
 const os = require('os');
 
@@ -152,31 +153,66 @@ function enviarListaHosts() {
   launcherWin?.webContents.send('hosts-lista', lista);
 }
 
+function registrarHost(ip, port) {
+  const existing = hostsEncontrados.get(ip);
+  if (existing?.timer) clearTimeout(existing.timer);
+  const timer = setTimeout(() => {
+    hostsEncontrados.delete(ip);
+    enviarListaHosts();
+  }, HOST_TIMEOUT);
+  const isNovo = !hostsEncontrados.has(ip);
+  hostsEncontrados.set(ip, { ip, port, timer });
+  if (isNovo) enviarListaHosts();
+}
+
 function iniciarEscutaHosts() {
   const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
 
   sock.on('message', (buf) => {
     try {
       const { ip, port } = JSON.parse(buf.toString());
-      const existing = hostsEncontrados.get(ip);
-      if (existing?.timer) clearTimeout(existing.timer);
-
-      const timer = setTimeout(() => {
-        hostsEncontrados.delete(ip);
-        enviarListaHosts();
-      }, HOST_TIMEOUT);
-
-      const isNovo = !hostsEncontrados.has(ip);
-      hostsEncontrados.set(ip, { ip, port, timer });
-      if (isNovo) enviarListaHosts();
+      registrarHost(ip, port);
     } catch {}
   });
 
   sock.bind(UDP_PORT);
   listenerSocket = sock;
+
+  // Fallback HTTP: quando o cliente está no hotspot (192.168.137.x),
+  // o host é sempre 192.168.137.1 — verifica via GET sem precisar de admin.
+  iniciarSondagemHttp();
+}
+
+let sondagemTimer = null;
+
+function iniciarSondagemHttp() {
+  const meuIp = getLanIp();
+  if (!meuIp.startsWith('192.168.137.') || meuIp === '192.168.137.1') return;
+
+  const hostIp = '192.168.137.1';
+
+  function sondar() {
+    const req = http.get(
+      { hostname: hostIp, port: SERVER_PORT, path: '/health', timeout: 2000 },
+      (res) => {
+        if (res.statusCode === 200) registrarHost(hostIp, SERVER_PORT);
+        res.resume();
+      }
+    );
+    req.on('error', () => {});
+    req.on('timeout', () => req.destroy());
+  }
+
+  sondar();
+  sondagemTimer = setInterval(sondar, 3000);
+}
+
+function pararSondagemHttp() {
+  if (sondagemTimer) { clearInterval(sondagemTimer); sondagemTimer = null; }
 }
 
 function pararEscutaHosts() {
+  pararSondagemHttp();
   hostsEncontrados.forEach(({ timer }) => clearTimeout(timer));
   hostsEncontrados.clear();
   try { listenerSocket?.close(); } catch {}

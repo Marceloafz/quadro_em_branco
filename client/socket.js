@@ -1,6 +1,7 @@
 const SERVIDOR = window.location.origin;
 
 const socket = io(SERVIDOR, {
+  transports: ['websocket'],
   reconnectionDelay: 1000,
   reconnectionAttempts: 10,
 });
